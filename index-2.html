@@ -1,0 +1,3552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RuntimeLabs — Unity Developer Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --black:        #000000;
+      --white:        #F2F2F2;
+      --grey-dim:     #555555;
+      --grey-mid:     #888888;
+      --border:       #1C1C1C;
+      --border-soft:  #2A2A2A;
+      --mono:         'Space Mono', monospace;
+      --sans:         'Space Grotesk', sans-serif;
+      --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-snap:    cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--black);
+      color: var(--white);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      font-feature-settings: 'kern' 1, 'liga' 1;
+      overflow-x: hidden;
+    }
+
+    ::selection {
+      background: var(--white);
+      color: var(--black);
+    }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--black); }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-soft);
+      border: 2px solid var(--black);
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--grey-dim); }
+    html { scrollbar-color: var(--border-soft) var(--black); scrollbar-width: thin; }
+
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 1px solid rgba(255,255,255,0.55);
+      outline-offset: 3px;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      background: none;
+      border: none;
+    }
+
+    .arrow-icon {
+      width: 14px;
+      height: 9px;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .arrow-icon svg { width: 100%; height: 100%; display: block; }
+
+    /* ─── GRID BACKGROUND ───────────────────────────────────────── */
+
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .grid-bg svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Primary grid lines */
+    .grid-lines {
+      stroke: #1A1A1A;
+      stroke-width: 1;
+    }
+
+    /* Accent grid every 5th cell */
+    .grid-accent {
+      stroke: #242424;
+      stroke-width: 1;
+    }
+
+    /* Vignette overlay */
+    .grid-vignette {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        ellipse 80% 60% at 50% 50%,
+        transparent 30%,
+        rgba(0,0,0,0.75) 100%
+      );
+    }
+
+    /* Animated scan line */
+    @keyframes scan {
+      0%   { transform: translateY(-100vh); opacity: 0; }
+      5%   { opacity: 1; }
+      95%  { opacity: 1; }
+      100% { transform: translateY(100vh); opacity: 0; }
+    }
+
+    .grid-scan {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .grid-scan::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255,255,255,0.04) 20%,
+        rgba(255,255,255,0.08) 50%,
+        rgba(255,255,255,0.04) 80%,
+        transparent 100%
+      );
+      animation: scan 12s linear infinite;
+      animation-delay: 2s;
+    }
+
+    /* Crosshair at center */
+    .grid-crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      opacity: 0.12;
+    }
+
+    .grid-crosshair::before,
+    .grid-crosshair::after {
+      content: '';
+      position: absolute;
+      background: var(--white);
+    }
+
+    .grid-crosshair::before {
+      width: 1px;
+      height: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .grid-crosshair::after {
+      height: 1px;
+      width: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    /* ─── LAYOUT SHELL ──────────────────────────────────────────── */
+
+    .site-wrapper {
+      position: relative;
+      z-index: 1;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── NAVBAR ────────────────────────────────────────────────── */
+
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      height: 56px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: background 0.4s var(--ease-premium), border-color 0.4s var(--ease-premium);
+    }
+
+    .navbar--scrolled {
+      background: rgba(0, 0, 0, 0.9);
+      border-bottom-color: rgba(255,255,255,0.09);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .nav-logo-mark {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--black);
+      background: var(--white);
+      padding: 3px 6px;
+      letter-spacing: 0.02em;
+      line-height: 1;
+      display: inline-block;
+      transition: transform 0.35s var(--ease-snap);
+    }
+
+    .nav-logo:hover .nav-logo-mark {
+      transform: rotate(-6deg) scale(1.08);
+    }
+
+    .nav-logo-name {
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--grey-mid);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: color 0.3s var(--ease-premium);
+      position: relative;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      left: 0; bottom: -6px;
+      width: 0; height: 1px;
+      background: var(--white);
+      transition: width 0.3s var(--ease-premium);
+    }
+
+    .nav-links a:hover::after,
+    .nav-links .nav-link-active::after {
+      width: 100%;
+    }
+
+    .nav-links a:hover {
+      color: var(--white);
+    }
+
+    .nav-links .nav-link-active {
+      color: var(--white);
+    }
+
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-version {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border: 1px solid var(--border-soft);
+    }
+
+    .nav-btn {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--black);
+      background: var(--white);
+      border: none;
+      padding: 8px 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.25s var(--ease-premium), transform 0.15s var(--ease-premium);
+      display: inline-block;
+    }
+
+    .nav-btn:active { transform: scale(0.96); }
+
+    .nav-btn:hover {
+      opacity: 0.85;
+    }
+
+    /* ─── HERO ──────────────────────────────────────────────────── */
+
+    .hero {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 40px 140px;
+      position: relative;
+      min-height: calc(100dvh - 56px);
+      overflow: hidden;
+    }
+
+    /* Node graph canvas — full hero background */
+    #node-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Wireframe cube container */
+    .cube-scene {
+      position: absolute;
+      pointer-events: none;
+      z-index: 0;
+      perspective: 600px;
+    }
+
+    .cube-scene.cube-left {
+      left: 6vw;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 120px;
+      height: 120px;
+      opacity: 0.13;
+      transition: transform 0.7s var(--ease-premium);
+      will-change: transform;
+    }
+
+    .cube-scene.cube-right {
+      right: 6vw;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 80px;
+      height: 80px;
+      opacity: 0.07;
+      transition: transform 0.7s var(--ease-premium);
+      will-change: transform;
+    }
+
+    @keyframes cube-spin {
+      0%   { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg); }
+      100% { transform: rotateX(360deg) rotateY(540deg) rotateZ(180deg); }
+    }
+
+    @keyframes cube-spin-alt {
+      0%   { transform: rotateX(20deg)  rotateY(0deg)   rotateZ(10deg); }
+      100% { transform: rotateX(380deg) rotateY(-540deg) rotateZ(190deg); }
+    }
+
+    .cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      animation: cube-spin 22s linear infinite;
+    }
+
+    .cube-scene.cube-right .cube {
+      animation: cube-spin-alt 30s linear infinite;
+    }
+
+    .cube-face {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 1px solid rgba(255,255,255,0.6);
+      background: transparent;
+    }
+
+    .cube-face.front  { transform: translateZ(50%); }
+    .cube-face.back   { transform: translateZ(-50%) rotateY(180deg); }
+    .cube-face.left   { transform: translateX(-50%) rotateY(-90deg); }
+    .cube-face.right  { transform: translateX(50%)  rotateY(90deg); }
+    .cube-face.top    { transform: translateY(-50%) rotateX(90deg); }
+    .cube-face.bottom { transform: translateY(50%)  rotateX(-90deg); }
+
+    /* Scale cube faces correctly for non-square scenes */
+    .cube-scene.cube-right .cube-face.front  { transform: translateZ(40px); }
+    .cube-scene.cube-right .cube-face.back   { transform: translateZ(-40px) rotateY(180deg); }
+    .cube-scene.cube-right .cube-face.left   { transform: translateX(-40px) rotateY(-90deg); }
+    .cube-scene.cube-right .cube-face.right  { transform: translateX(40px)  rotateY(90deg); }
+    .cube-scene.cube-right .cube-face.top    { transform: translateY(-40px) rotateX(90deg); }
+    .cube-scene.cube-right .cube-face.bottom { transform: translateY(40px)  rotateX(-90deg); }
+
+    /* Hero content stack — sits above canvas */
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Status badge */
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--grey-mid);
+      border: 1px solid var(--border-soft);
+      padding: 7px 16px;
+      margin-bottom: 72px;
+      backdrop-filter: blur(4px);
+    }
+
+    .hero-badge-dot {
+      width: 5px;
+      height: 5px;
+      background: var(--white);
+      border-radius: 50%;
+      opacity: 0.5;
+      animation: pulse-dot 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.4); }
+    }
+
+    /* Logo */
+    .hero-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 64px;
+    }
+
+    .hero-logo-symbol {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 96px;
+      height: 96px;
+    }
+
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    @keyframes spin-rev {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(-360deg); }
+    }
+
+    .logo-ring {
+      position: absolute;
+      border: 1px solid;
+      border-radius: 50%;
+    }
+
+    .logo-ring-outer {
+      width: 96px;
+      height: 96px;
+      border-color: rgba(255,255,255,0.06);
+      animation: spin-slow 28s linear infinite;
+    }
+
+    .logo-ring-mid {
+      width: 74px;
+      height: 74px;
+      border-color: rgba(255,255,255,0.10);
+      border-style: dashed;
+      animation: spin-rev 18s linear infinite;
+    }
+
+    .logo-core {
+      position: relative;
+      z-index: 1;
+      width: 44px;
+      height: 44px;
+      background: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-core-text {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--black);
+      letter-spacing: 0.02em;
+      line-height: 1;
+    }
+
+    .hero-logo-name {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-wordmark {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      color: rgba(242,242,242,0.7);
+    }
+
+    .hero-wordmark-sub {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+    }
+
+    /* Divider */
+    .hero-rule {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.12), transparent);
+      margin: 0 auto 64px;
+    }
+
+    /* Eyebrow label above headline */
+    .hero-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-eyebrow::before,
+    .hero-eyebrow::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--border-soft);
+    }
+
+    /* Headline — premium sizing & split treatment */
+    .hero-headline {
+      font-family: var(--sans);
+      font-size: clamp(48px, 7vw, 96px);
+      font-weight: 700;
+      line-height: 1.0;
+      letter-spacing: -0.04em;
+      color: var(--white);
+      max-width: 900px;
+      margin-bottom: 0;
+    }
+
+    .hero-headline-line1 {
+      display: block;
+      color: var(--white);
+    }
+
+    .hero-headline-line2 {
+      display: block;
+      color: transparent;
+      -webkit-text-stroke: 1.5px rgba(255,255,255,0.28);
+      margin-top: 0.04em;
+    }
+
+    /* Description */
+    .hero-description {
+      font-family: var(--sans);
+      font-size: clamp(15px, 1.4vw, 17px);
+      font-weight: 300;
+      line-height: 1.75;
+      color: rgba(136,136,136,0.9);
+      max-width: 480px;
+      margin-top: 40px;
+      margin-bottom: 64px;
+      letter-spacing: 0.01em;
+    }
+
+    /* CTA buttons */
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--black);
+      background: var(--white);
+      border: 1px solid var(--white);
+      padding: 15px 36px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.3s var(--ease-premium), color 0.3s var(--ease-premium), transform 0.15s var(--ease-premium);
+    }
+
+    .btn-primary:hover {
+      background: transparent;
+      color: var(--white);
+    }
+
+    .btn-primary:active { transform: scale(0.97); }
+
+    .btn-primary .btn-arrow {
+      transition: transform 0.3s var(--ease-premium);
+    }
+
+    .btn-primary:hover .btn-arrow {
+      transform: translateX(5px);
+    }
+
+    .btn-secondary {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--grey-mid);
+      background: transparent;
+      border: 1px solid var(--border-soft);
+      padding: 15px 36px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      transition: color 0.3s var(--ease-premium), border-color 0.3s var(--ease-premium), transform 0.15s var(--ease-premium);
+    }
+
+    .btn-secondary:hover {
+      color: var(--white);
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    .btn-secondary:active { transform: scale(0.97); }
+
+    /* ─── REVEAL SYSTEM (load + scroll) ─────────────────────────── */
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.9s var(--ease-premium), transform 0.9s var(--ease-premium);
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+      }
+      .cube-scene {
+        transform: none !important;
+        transition: none !important;
+      }
+    }
+
+    /* Corner coords */
+    .hero-coords {
+      position: absolute;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: rgba(255,255,255,0.08);
+      letter-spacing: 0.06em;
+      line-height: 1.7;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .hero-coords.top-left    { top: 32px;    left: 40px;  text-align: left; }
+    .hero-coords.top-right   { top: 32px;    right: 40px; text-align: right; }
+    .hero-coords.bottom-left { bottom: 32px; left: 40px;  text-align: left; }
+    .hero-coords.bottom-right{ bottom: 32px; right: 40px; text-align: right; }
+
+    /* ─── SECTION MARKER (chapter numbering) ───────────────────── */
+
+    .section-marker {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.1);
+      line-height: 1.6;
+      pointer-events: none;
+    }
+
+    .section-marker-index { display: block; color: rgba(255,255,255,0.16); }
+
+    @media (max-width: 768px) {
+      .section-marker { display: none; }
+    }
+
+    /* ─── FEATURED TOOLS ────────────────────────────────────────── */
+
+    .tools-section {
+      position: relative;
+      z-index: 1;
+      padding: 140px 40px 160px;
+      border-top: 1px solid var(--border);
+    }
+
+    .tools-header {
+      max-width: 620px;
+      margin: 0 auto 80px;
+      text-align: center;
+    }
+
+    .tools-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .tools-eyebrow::before,
+    .tools-eyebrow::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--border-soft);
+    }
+
+    .tools-heading {
+      font-family: var(--sans);
+      font-size: clamp(28px, 3.4vw, 42px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--white);
+      margin-bottom: 18px;
+    }
+
+    .tools-subhead {
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.7;
+      color: var(--grey-mid);
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .tools-grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      border: 1px solid var(--border);
+    }
+
+    .tool-card {
+      position: relative;
+      padding: 44px 36px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tool-card:last-child { border-bottom: none; }
+
+    .tool-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border: 1px solid transparent;
+      background: transparent;
+      pointer-events: none;
+      transition: border-color 0.35s ease, background 0.35s ease;
+      z-index: 1;
+    }
+
+    .tool-card:hover { z-index: 5; }
+
+    .tool-card-inner {
+      position: relative;
+      z-index: 2;
+    }
+
+    .tool-card:hover::before {
+      border-color: rgba(255,255,255,0.2);
+      background: radial-gradient(circle at var(--mx, 15%) var(--my, 0%), rgba(255,255,255,0.05), transparent 65%);
+    }
+
+    .tool-index {
+      position: absolute;
+      top: 36px;
+      right: 36px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--border-soft);
+      letter-spacing: 0.08em;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.35s var(--ease-premium);
+    }
+
+    .tool-card:hover .tool-index { color: var(--grey-dim); }
+
+    .tool-icon-box {
+      position: relative;
+      z-index: 2;
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-soft);
+      color: rgba(242,242,242,0.85);
+      margin-bottom: 28px;
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    }
+
+    .tool-icon-box svg { width: 22px; height: 22px; }
+
+    .tool-card:hover .tool-icon-box {
+      background: var(--white);
+      color: var(--black);
+      border-color: var(--white);
+    }
+
+    .tool-category {
+      position: relative;
+      z-index: 2;
+      display: block;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      margin-bottom: 14px;
+      transition: color 0.3s ease;
+    }
+
+    .tool-card:hover .tool-category { color: var(--grey-mid); }
+
+    .tool-name {
+      position: relative;
+      z-index: 2;
+      font-family: var(--sans);
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--white);
+      margin-bottom: 14px;
+    }
+
+    .tool-description {
+      position: relative;
+      z-index: 2;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 300;
+      line-height: 1.65;
+      color: var(--grey-mid);
+      margin-bottom: 22px;
+    }
+
+    .tool-link {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
+    }
+
+    .tool-card:hover .tool-link {
+      opacity: 1;
+      transform: translateY(0);
+      color: var(--white);
+    }
+
+    .tool-link-arrow { transition: transform 0.35s var(--ease-premium); }
+    .tool-card:hover .tool-link-arrow { transform: translateX(4px); }
+
+    @media (min-width: 641px) {
+      .tools-grid { grid-template-columns: repeat(2, 1fr); }
+      .tool-card { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+      .tool-card:nth-child(2n) { border-right: none; }
+      .tool-card:nth-child(5), .tool-card:nth-child(6) { border-bottom: none; }
+    }
+
+    @media (min-width: 1025px) {
+      .tools-grid { grid-template-columns: repeat(3, 1fr); }
+      .tool-card { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+      .tool-card:nth-child(3n) { border-right: none; }
+      .tool-card:nth-child(4), .tool-card:nth-child(5), .tool-card:nth-child(6) { border-bottom: none; }
+    }
+
+    @media (max-width: 768px) {
+      .tools-section { padding: 80px 20px 100px; }
+      .tools-header { margin-bottom: 56px; }
+      .tool-card { padding: 36px 24px; }
+      .tool-index { top: 28px; right: 24px; }
+    }
+
+
+    /* ─── DOCUMENTATION ─────────────────────────────────────────── */
+
+    .docs-section {
+      position: relative;
+      z-index: 1;
+      padding: 140px 40px 160px;
+      border-top: 1px solid var(--border);
+    }
+
+    .docs-header {
+      max-width: 620px;
+      margin: 0 auto 72px;
+      text-align: center;
+    }
+
+    .docs-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .docs-eyebrow::before,
+    .docs-eyebrow::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--border-soft);
+    }
+
+    .docs-heading {
+      font-family: var(--sans);
+      font-size: clamp(28px, 3.4vw, 42px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--white);
+      margin-bottom: 18px;
+    }
+
+    .docs-subhead {
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.7;
+      color: var(--grey-mid);
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .docs-window {
+      max-width: 1200px;
+      margin: 0 auto;
+      border: 1px solid var(--border-soft);
+      background: rgba(255,255,255,0.012);
+    }
+
+    .docs-window-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      height: 44px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .docs-window-dots { display: flex; gap: 7px; flex-shrink: 0; }
+    .docs-window-dots span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      border: 1px solid var(--border-soft);
+    }
+
+    .docs-window-path {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--grey-dim);
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .docs-window-path span { color: var(--grey-mid); }
+
+    .docs-window-tag {
+      flex-shrink: 0;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      letter-spacing: 0.06em;
+      border: 1px solid var(--border-soft);
+      padding: 3px 9px;
+      white-space: nowrap;
+    }
+
+    .docs-search-row { padding: 24px 24px 0; }
+
+    .docs-search-input {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border-soft);
+      padding: 14px 16px;
+      transition: border-color 0.3s var(--ease-premium), background 0.3s var(--ease-premium);
+    }
+    .docs-search-input:hover { border-color: rgba(255,255,255,0.22); }
+    .docs-search-input:focus-within {
+      border-color: rgba(255,255,255,0.4);
+      background: rgba(255,255,255,0.012);
+    }
+
+    .docs-search-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--grey-dim);
+      flex-shrink: 0;
+      transition: color 0.3s ease;
+    }
+    .docs-search-icon svg { width: 100%; height: 100%; }
+    .docs-search-input:focus-within .docs-search-icon { color: var(--grey-mid); }
+
+    .docs-search-field {
+      flex: 1;
+      min-width: 0;
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--white);
+      background: none;
+      border: none;
+      outline: none;
+      text-align: left;
+    }
+    .docs-search-field::placeholder { color: var(--grey-dim); }
+
+    .docs-search-kbd {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      letter-spacing: 0.04em;
+    }
+    .docs-search-kbd span {
+      border: 1px solid var(--border-soft);
+      padding: 2px 6px;
+      line-height: 1.3;
+    }
+
+    .docs-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 18px 24px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .docs-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      border: 1px solid var(--border-soft);
+      color: var(--grey-mid);
+      transition: background 0.25s var(--ease-premium), color 0.25s var(--ease-premium), border-color 0.25s var(--ease-premium), transform 0.15s var(--ease-premium);
+      cursor: pointer;
+    }
+    .docs-chip:active { transform: scale(0.95); }
+    .docs-chip-active {
+      background: var(--white);
+      color: var(--black);
+      border-color: var(--white);
+    }
+    .docs-chip:hover:not(.docs-chip-active) {
+      border-color: rgba(255,255,255,0.25);
+      color: var(--white);
+    }
+
+    .docs-body {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+    }
+
+    .docs-sidebar {
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+    }
+
+    .docs-tree-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 20px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--grey-mid);
+      cursor: pointer;
+      text-align: left;
+      border: none;
+      border-left: 2px solid transparent;
+      transition: color 0.25s var(--ease-premium), background 0.25s var(--ease-premium), border-left-color 0.25s var(--ease-premium);
+    }
+    .docs-tree-item:hover {
+      color: var(--white);
+      background: rgba(255,255,255,0.02);
+    }
+    .docs-tree-item-active {
+      color: var(--white);
+      border-left-color: var(--white);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .docs-tree-icon { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.7; }
+    .docs-tree-icon svg { width: 100%; height: 100%; }
+
+    .docs-tree-label {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+      letter-spacing: 0.02em;
+    }
+
+    .docs-tree-count {
+      font-size: 10px;
+      color: var(--border-soft);
+      font-variant-numeric: tabular-nums;
+      transition: color 0.25s var(--ease-premium);
+    }
+    .docs-tree-item:hover .docs-tree-count,
+    .docs-tree-item-active .docs-tree-count { color: var(--grey-dim); }
+
+    .docs-tree-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 10px 20px;
+    }
+
+    .docs-terminal {
+      margin: 16px 20px 0;
+      border: 1px solid var(--border);
+    }
+    .docs-terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .docs-terminal-bar span {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--border-soft);
+    }
+    .docs-terminal-body {
+      padding: 12px 12px 14px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      line-height: 1.7;
+      color: var(--grey-dim);
+    }
+    .docs-terminal-prompt { color: var(--grey-mid); }
+    .docs-terminal-success { color: var(--white); }
+
+    .docs-results { padding: 6px 0; }
+
+    .docs-result-row {
+      position: relative;
+      display: flex;
+      gap: 18px;
+      padding: 22px 28px;
+      border-bottom: 1px solid var(--border);
+      border-left: 2px solid transparent;
+      transition: border-left-color 0.3s var(--ease-premium);
+      overflow: hidden;
+    }
+    .docs-result-row:last-child { border-bottom: none; }
+    .docs-result-row::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at var(--mx, 10%) var(--my, 0%), rgba(255,255,255,0.05), transparent 65%);
+      opacity: 0;
+      transition: opacity 0.3s var(--ease-premium);
+      pointer-events: none;
+    }
+    .docs-result-row:hover {
+      border-left-color: rgba(255,255,255,0.5);
+    }
+    .docs-result-row:hover::before { opacity: 1; }
+
+    .docs-result-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 18px;
+      width: 100%;
+    }
+
+    .docs-result-icon {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-soft);
+      color: rgba(242,242,242,0.75);
+      transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    }
+    .docs-result-icon svg { width: 16px; height: 16px; }
+    .docs-result-row:hover .docs-result-icon {
+      background: var(--white);
+      color: var(--black);
+      border-color: var(--white);
+    }
+
+    .docs-result-content { flex: 1; min-width: 0; }
+
+    .docs-result-breadcrumb {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--border-soft);
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+      transition: color 0.25s ease;
+    }
+    .docs-result-row:hover .docs-result-breadcrumb { color: var(--grey-dim); }
+
+    .docs-result-title-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .docs-result-title {
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: -0.01em;
+    }
+
+    .docs-result-tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      border: 1px solid var(--border-soft);
+      padding: 2px 8px;
+      flex-shrink: 0;
+    }
+
+    .docs-result-desc {
+      font-family: var(--sans);
+      font-size: 13.5px;
+      font-weight: 300;
+      line-height: 1.6;
+      color: var(--grey-mid);
+    }
+
+    .docs-result-arrow {
+      flex-shrink: 0;
+      align-self: center;
+      color: var(--border-soft);
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: opacity 0.35s var(--ease-premium), transform 0.35s var(--ease-premium), color 0.35s var(--ease-premium);
+    }
+    .docs-result-row:hover .docs-result-arrow {
+      opacity: 1;
+      transform: translateX(0);
+      color: var(--white);
+    }
+
+    .docs-window-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 28px;
+      border-top: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      letter-spacing: 0.04em;
+    }
+
+    @media (max-width: 900px) {
+      .docs-body { grid-template-columns: 1fr; }
+      .docs-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
+    @media (max-width: 768px) {
+      .docs-section { padding: 80px 20px 100px; }
+      .docs-header { margin-bottom: 56px; }
+      .docs-window-path { display: none; }
+      .docs-result-row { padding: 18px 18px; gap: 12px; }
+      .docs-result-icon { width: 32px; height: 32px; }
+      .docs-filters { padding: 16px 18px 20px; }
+      .docs-search-row { padding: 18px 18px 0; }
+    }
+
+    /* ─── BUILT FOR PRODUCTION ──────────────────────────────────── */
+
+    .prod-section {
+      position: relative;
+      z-index: 1;
+      padding: 140px 40px 160px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Header */
+    .prod-header {
+      max-width: 860px;
+      margin: 0 auto 80px;
+    }
+
+    .prod-eyebrow {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .prod-eyebrow::before {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 1px;
+      background: var(--border-soft);
+    }
+
+    .prod-heading {
+      font-family: var(--sans);
+      font-size: clamp(28px, 3.4vw, 42px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--white);
+      margin-bottom: 18px;
+    }
+
+    .prod-subhead {
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.7;
+      color: var(--grey-mid);
+      max-width: 560px;
+    }
+
+    /* ── Main layout: spec table left + capability cards right ── */
+    .prod-layout {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 0;
+      border: 1px solid var(--border);
+    }
+
+    /* ── Left: compatibility spec table ── */
+    .prod-spec-panel {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .prod-spec-header {
+      padding: 20px 28px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .prod-spec-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+    }
+
+    .prod-spec-badge {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: var(--grey-dim);
+      border: 1px solid var(--border-soft);
+      padding: 3px 8px;
+    }
+
+    .prod-spec-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      padding: 15px 28px;
+      border-bottom: 1px solid var(--border);
+      gap: 16px;
+      transition: background 0.25s var(--ease-premium);
+    }
+
+    .prod-spec-row:last-child { border-bottom: none; }
+
+    .prod-spec-row:hover {
+      background: rgba(255,255,255,0.018);
+    }
+
+    .prod-spec-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .prod-spec-icon {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      border: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(242,242,242,0.6);
+      transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .prod-spec-icon svg { width: 13px; height: 13px; }
+
+    .prod-spec-row:hover .prod-spec-icon {
+      background: rgba(255,255,255,0.06);
+      color: var(--white);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    .prod-spec-info { min-width: 0; }
+
+    .prod-spec-name {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--white);
+      letter-spacing: -0.01em;
+      margin-bottom: 2px;
+    }
+
+    .prod-spec-detail {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .prod-spec-status {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .prod-status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .prod-status--supported .prod-status-dot { background: rgba(242,242,242,0.7); }
+    .prod-status--supported { color: rgba(242,242,242,0.55); }
+
+    .prod-status--lts .prod-status-dot { background: rgba(242,242,242,0.4); }
+    .prod-status--lts { color: rgba(242,242,242,0.35); }
+
+    /* Version range bar */
+    .prod-version-bar {
+      padding: 16px 28px 20px;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+    }
+
+    .prod-version-bar-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      margin-bottom: 10px;
+    }
+
+    .prod-version-track {
+      position: relative;
+      height: 3px;
+      background: var(--border-soft);
+    }
+
+    .prod-version-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: rgba(242,242,242,0.35);
+      width: 72%;
+    }
+
+    .prod-version-ticks {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 7px;
+    }
+
+    .prod-version-tick {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--grey-dim);
+      letter-spacing: 0.04em;
+    }
+
+    .prod-version-tick.is-active { color: rgba(242,242,242,0.6); }
+
+    /* ── Right: capability cards ── */
+    .prod-caps {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .prod-cap {
+      padding: 32px 32px 28px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+      transition: background 0.3s var(--ease-premium);
+    }
+
+    .prod-cap:nth-child(2n) { border-right: none; }
+    .prod-cap:nth-last-child(-n+2) { border-bottom: none; }
+
+    .prod-cap:hover {
+      background: rgba(255,255,255,0.016);
+    }
+
+    /* Subtle corner bracket on hover */
+    .prod-cap::before {
+      content: '';
+      position: absolute;
+      top: 12px; left: 12px;
+      width: 14px; height: 14px;
+      border-top: 1px solid rgba(255,255,255,0);
+      border-left: 1px solid rgba(255,255,255,0);
+      transition: border-color 0.35s var(--ease-premium);
+      pointer-events: none;
+    }
+
+    .prod-cap:hover::before {
+      border-top-color: rgba(255,255,255,0.18);
+      border-left-color: rgba(255,255,255,0.18);
+    }
+
+    .prod-cap-index {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--border-soft);
+      letter-spacing: 0.1em;
+      margin-bottom: 20px;
+      display: block;
+      transition: color 0.3s ease;
+    }
+
+    .prod-cap:hover .prod-cap-index { color: var(--grey-dim); }
+
+    .prod-cap-icon {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(242,242,242,0.7);
+      margin-bottom: 20px;
+      transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .prod-cap-icon svg { width: 16px; height: 16px; }
+
+    .prod-cap:hover .prod-cap-icon {
+      background: rgba(255,255,255,0.06);
+      color: var(--white);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    .prod-cap-name {
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: -0.01em;
+      margin-bottom: 10px;
+    }
+
+    .prod-cap-desc {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 300;
+      line-height: 1.65;
+      color: var(--grey-mid);
+      margin-bottom: 20px;
+    }
+
+    /* Inline spec tags */
+    .prod-cap-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .prod-cap-tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+      border: 1px solid var(--border-soft);
+      padding: 3px 8px;
+      transition: color 0.25s ease, border-color 0.25s ease;
+    }
+
+    .prod-cap:hover .prod-cap-tag {
+      color: rgba(242,242,242,0.45);
+      border-color: rgba(255,255,255,0.1);
+    }
+
+    /* Bottom status bar */
+    .prod-status-bar {
+      max-width: 1200px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-top: none;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .prod-stat {
+      padding: 20px 28px;
+      border-right: 1px solid var(--border);
+      transition: background 0.25s var(--ease-premium);
+    }
+
+    .prod-stat:last-child { border-right: none; }
+    .prod-stat:hover { background: rgba(255,255,255,0.014); }
+
+    .prod-stat-value {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .prod-stat-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--grey-dim);
+    }
+
+    @media (max-width: 1024px) {
+      .prod-layout { grid-template-columns: 1fr; }
+      .prod-spec-panel { border-right: none; border-bottom: 1px solid var(--border); }
+      .prod-status-bar { grid-template-columns: repeat(2, 1fr); }
+      .prod-stat:nth-child(2) { border-right: none; }
+      .prod-stat:nth-child(3) { border-top: 1px solid var(--border); }
+      .prod-stat:nth-child(4) { border-top: 1px solid var(--border); border-right: none; }
+    }
+
+    @media (max-width: 640px) {
+      .prod-section { padding: 80px 20px 100px; }
+      .prod-caps { grid-template-columns: 1fr; }
+      .prod-cap { border-right: none !important; }
+      .prod-cap:last-child { border-bottom: none; }
+      .prod-status-bar { grid-template-columns: 1fr 1fr; }
+      .prod-header { margin-bottom: 56px; }
+    }
+
+    /* ─── FOOTER ────────────────────────────────────────────────── */
+
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 0 40px;
+      background: rgba(0,0,0,0.6);
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 52px;
+      gap: 24px;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .footer-logo {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-logo-mark {
+      font-size: 10px;
+      color: var(--black);
+      background: var(--white);
+      padding: 1px 4px;
+      display: inline-block;
+      transition: transform 0.35s var(--ease-snap);
+    }
+
+    .footer-logo:hover .footer-logo-mark {
+      transform: rotate(-6deg) scale(1.08);
+    }
+
+    .footer-sep {
+      width: 1px;
+      height: 16px;
+      background: var(--border-soft);
+    }
+
+    .footer-copy {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      letter-spacing: 0.04em;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: color 0.3s var(--ease-premium);
+    }
+
+    .footer-links a:hover {
+      color: var(--white);
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .footer-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--grey-dim);
+      letter-spacing: 0.06em;
+    }
+
+    .footer-status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--white);
+      opacity: 0.55;
+      animation: pulse-dot 3s ease-in-out infinite;
+    }
+
+    /* ─── RESPONSIVE ────────────────────────────────────────────── */
+
+    @media (max-width: 768px) {
+      .navbar { padding: 0 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 80px 24px 100px; min-height: auto; }
+      .hero-coords { display: none; }
+      .cube-scene { display: none; }
+      .footer { padding: 0 20px; }
+      .footer-inner { flex-direction: column; height: auto; padding: 20px 0; gap: 12px; }
+      .footer-links { gap: 16px; flex-wrap: wrap; justify-content: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .logo-ring, .cube, .grid-scan::after, .hero-badge-dot { animation: none; }
+    }
+
+    /* ─── RUNTIME BRANDING: AMBIENT DECORATIONS ──────────────── */
+
+    /* === COORDINATE HUD STRIPS (hero edges) ======================== */
+    /* Already styled above as .hero-coords — extend opacity & tick marks */
+    .hero-coords .coord-tick {
+      display: inline-block;
+      width: 6px;
+      height: 1px;
+      background: currentColor;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+
+    /* === AXIS RULER (horizontal, left side of hero) ================ */
+    .axis-ruler {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 200px;
+      pointer-events: none;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .axis-ruler-line {
+      width: 1px;
+      flex: 1;
+      background: linear-gradient(to bottom,
+        transparent 0%,
+        rgba(255,255,255,0.06) 20%,
+        rgba(255,255,255,0.10) 50%,
+        rgba(255,255,255,0.06) 80%,
+        transparent 100%
+      );
+    }
+
+    .axis-ruler-tick {
+      width: 8px;
+      height: 1px;
+      background: rgba(255,255,255,0.12);
+      margin: 14px 0;
+      flex-shrink: 0;
+    }
+
+    .axis-ruler-label {
+      font-family: var(--mono);
+      font-size: 7px;
+      color: rgba(255,255,255,0.10);
+      letter-spacing: 0.12em;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      margin: 6px 0;
+      flex-shrink: 0;
+    }
+
+    /* Right-side axis ruler */
+    .axis-ruler.axis-right {
+      right: 0;
+      left: auto;
+    }
+
+    /* === PROCEDURAL SEED BADGE (hero, near badge) ================== */
+    .proc-seed {
+      position: absolute;
+      bottom: 44px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--mono);
+      font-size: 9px;
+      color: rgba(255,255,255,0.07);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .proc-seed::before,
+    .proc-seed::after {
+      content: '';
+      display: block;
+      width: 32px;
+      height: 1px;
+      background: rgba(255,255,255,0.07);
+    }
+
+    /* === WIREFRAME ICOSAHEDRON (SVG, hero right mid) ============== */
+    .wireframe-iso {
+      position: absolute;
+      right: 3vw;
+      bottom: 15%;
+      width: 90px;
+      height: 90px;
+      opacity: 0.055;
+      pointer-events: none;
+      z-index: 0;
+      animation: iso-spin 40s linear infinite;
+      will-change: transform;
+    }
+
+    @keyframes iso-spin {
+      0%   { transform: rotate(0deg) scale(1); }
+      50%  { transform: rotate(180deg) scale(1.06); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+
+    /* === NODE GRAPH MINI-PANEL (left of tools section) ============ */
+    .node-panel {
+      position: absolute;
+      top: 40px;
+      right: 40px;
+      width: 180px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.22;
+    }
+
+    .node-panel-bar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px;
+      border: 1px solid rgba(255,255,255,0.09);
+      border-bottom: none;
+      background: rgba(255,255,255,0.015);
+    }
+
+    .node-panel-bar-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+    }
+
+    .node-panel-bar-label {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.1em;
+      margin-left: 2px;
+    }
+
+    .node-panel-canvas {
+      border: 1px solid rgba(255,255,255,0.09);
+      background: rgba(0,0,0,0.2);
+      display: block;
+    }
+
+    @media (max-width: 900px) {
+      .node-panel { display: none; }
+    }
+
+    /* === LEVEL-DESIGN GRID OVERLAY (tools section) ================= */
+    .level-grid-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .level-grid-overlay svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0.025;
+    }
+
+    /* Spawn-point markers inside tools section corners */
+    .spawn-marker {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.12;
+    }
+
+    .spawn-marker::before,
+    .spawn-marker::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.8);
+    }
+
+    .spawn-marker.sm-tl { top: 20px; left: 20px; }
+    .spawn-marker.sm-tr { top: 20px; right: 20px; }
+    .spawn-marker.sm-bl { bottom: 20px; left: 20px; }
+    .spawn-marker.sm-br { bottom: 20px; right: 20px; }
+
+    /* X shape */
+    .spawn-marker::before {
+      width: 100%;
+      height: 1px;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%) rotate(45deg);
+    }
+    .spawn-marker::after {
+      width: 100%;
+      height: 1px;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%) rotate(-45deg);
+    }
+
+    /* === PROCEDURAL RULE — MARQUEE TICKER ========================== */
+    .proc-ticker {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 9px 0;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+      background: rgba(0,0,0,0.15);
+    }
+
+    .proc-ticker-track {
+      display: flex;
+      white-space: nowrap;
+      animation: ticker-scroll 28s linear infinite;
+    }
+
+    @keyframes ticker-scroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .proc-ticker-item {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.10);
+      padding: 0 28px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .proc-ticker-item::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      flex-shrink: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .proc-ticker-track { animation: none; }
+      .wireframe-iso { animation: none; }
+      .iso-spin { animation: none; }
+    }
+
+    /* === ORTHOGRAPHIC PROJECTION DIAGRAM (docs section deco) ======= */
+    .ortho-diagram {
+      position: absolute;
+      bottom: 40px;
+      right: 40px;
+      width: 100px;
+      height: 100px;
+      opacity: 0.07;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @media (max-width: 900px) {
+      .ortho-diagram { display: none; }
+    }
+
+    /* === FOOTER GRAPH NODES ======================================== */
+    .footer-node-graph {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      opacity: 0.5;
+    }
+
+    .footer { position: relative; }
+
+  </style>
+</head>
+<body>
+
+  <!-- ── GRID BACKGROUND ─────────────────────────────────────── -->
+  <div class="grid-bg" aria-hidden="true">
+    <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <!-- Small cell: 32×32 -->
+        <pattern id="grid-sm" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+          <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#161616" stroke-width="0.5"/>
+        </pattern>
+        <!-- Large cell: 160×160 (every 5th) -->
+        <pattern id="grid-lg" x="0" y="0" width="160" height="160" patternUnits="userSpaceOnUse">
+          <path d="M 160 0 L 0 0 0 160" fill="none" stroke="#1E1E1E" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grid-sm)"/>
+      <rect width="100%" height="100%" fill="url(#grid-lg)"/>
+    </svg>
+    <div class="grid-vignette"></div>
+    <div class="grid-scan"></div>
+    <div class="grid-crosshair"></div>
+  </div>
+
+  <!-- ── SITE WRAPPER ────────────────────────────────────────── -->
+  <div class="site-wrapper">
+
+    <!-- NAVBAR -->
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
+      <a href="/" class="nav-logo" aria-label="RuntimeLabs Home">
+        <span class="nav-logo-mark">RL</span>
+        <span class="nav-logo-name">RuntimeLabs</span>
+      </a>
+
+      <ul class="nav-links" role="list">
+        <li><a href="#" class="nav-link-active">Products</a></li>
+        <li><a href="#production">Production</a></li>
+        <li><a href="#documentation">Documentation</a></li>
+        <li><a href="#">Changelog</a></li>
+        <li><a href="#">Blog</a></li>
+        <li><a href="#">Support</a></li>
+      </ul>
+
+      <div class="nav-cta">
+        <span class="nav-version">v2.4.1</span>
+        <a href="#" class="nav-btn">Asset Store</a>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <main class="hero" role="main">
+
+      <!-- Procedural node graph canvas -->
+      <canvas id="node-canvas" aria-hidden="true"></canvas>
+
+      <!-- Wireframe cubes -->
+      <div class="cube-scene cube-left" aria-hidden="true">
+        <div class="cube">
+          <div class="cube-face front"></div>
+          <div class="cube-face back"></div>
+          <div class="cube-face left"></div>
+          <div class="cube-face right"></div>
+          <div class="cube-face top"></div>
+          <div class="cube-face bottom"></div>
+        </div>
+      </div>
+
+      <div class="cube-scene cube-right" aria-hidden="true">
+        <div class="cube">
+          <div class="cube-face front"></div>
+          <div class="cube-face back"></div>
+          <div class="cube-face left"></div>
+          <div class="cube-face right"></div>
+          <div class="cube-face top"></div>
+          <div class="cube-face bottom"></div>
+        </div>
+      </div>
+
+      <!-- Corner debug labels -->
+      <div class="hero-coords top-left" aria-hidden="true">
+        SCENE_VIEW<br>
+        X: 0.000<br>
+        Y: 0.000
+      </div>
+      <div class="hero-coords top-right" aria-hidden="true">
+        UNITY 2022+<br>
+        URP / HDRP<br>
+        .NET 6.0
+      </div>
+      <div class="hero-coords bottom-left" aria-hidden="true">
+        BUILD: 20260615<br>
+        STATUS: STABLE
+      </div>
+      <div class="hero-coords bottom-right" aria-hidden="true">
+        FPS: 60<br>
+        DRAW CALLS: 1
+      </div>
+
+      <!-- Axis ruler — left -->
+      <div class="axis-ruler" aria-hidden="true">
+        <div class="axis-ruler-label">Y</div>
+        <div class="axis-ruler-tick"></div>
+        <div class="axis-ruler-line"></div>
+        <div class="axis-ruler-tick"></div>
+        <div class="axis-ruler-label">−Y</div>
+      </div>
+
+      <!-- Axis ruler — right -->
+      <div class="axis-ruler axis-right" aria-hidden="true">
+        <div class="axis-ruler-label">Z</div>
+        <div class="axis-ruler-tick"></div>
+        <div class="axis-ruler-line"></div>
+        <div class="axis-ruler-tick"></div>
+        <div class="axis-ruler-label">−Z</div>
+      </div>
+
+      <!-- Wireframe icosahedron -->
+      <svg class="wireframe-iso" aria-hidden="true" viewBox="0 0 100 100" fill="none" stroke="rgba(255,255,255,1)" stroke-width="0.6">
+        <!-- Icosahedron-inspired wireframe (12 vertices projected flat) -->
+        <polygon points="50,4 79,18 91,48 79,78 50,94 21,78 9,48 21,18" stroke-width="0.5"/>
+        <polygon points="50,4 79,18 50,32 21,18"/>
+        <polygon points="50,32 79,18 91,48 65,48"/>
+        <polygon points="50,32 65,48 50,64 35,48"/>
+        <polygon points="50,32 35,48 9,48 21,18"/>
+        <polygon points="50,64 79,78 50,94 21,78"/>
+        <polygon points="50,64 65,48 91,48 79,78"/>
+        <polygon points="50,64 21,78 9,48 35,48"/>
+        <line x1="50" y1="4"  x2="50" y2="32"/>
+        <line x1="50" y1="64" x2="50" y2="94"/>
+        <line x1="9"  y1="48" x2="91" y2="48"/>
+        <circle cx="50" cy="4"  r="1.5"/>
+        <circle cx="50" cy="94" r="1.5"/>
+        <circle cx="9"  cy="48" r="1.5"/>
+        <circle cx="91" cy="48" r="1.5"/>
+        <circle cx="50" cy="32" r="1.2"/>
+        <circle cx="50" cy="64" r="1.2"/>
+        <circle cx="35" cy="48" r="1.2"/>
+        <circle cx="65" cy="48" r="1.2"/>
+        <circle cx="21" cy="18" r="1.2"/>
+        <circle cx="79" cy="18" r="1.2"/>
+        <circle cx="21" cy="78" r="1.2"/>
+        <circle cx="79" cy="78" r="1.2"/>
+      </svg>
+
+      <!-- Procedural seed strip -->
+      <div class="proc-seed" aria-hidden="true">SEED: 0xA3F8C12E — PROCEDURAL</div>
+
+      <!-- All visible content in one centered stack -->
+      <div class="hero-content">
+
+        <!-- Status badge -->
+        <div class="hero-badge reveal" data-reveal-group="hero">
+          <span class="hero-badge-dot"></span>
+          <span>Now shipping — RuntimeLabs Suite 2.4</span>
+        </div>
+
+        <!-- Logo -->
+        <div class="hero-logo reveal" data-reveal-group="hero">
+          <div class="hero-logo-symbol" role="img" aria-label="RuntimeLabs logo">
+            <div class="logo-ring logo-ring-outer"></div>
+            <div class="logo-ring logo-ring-mid"></div>
+            <div class="logo-core">
+              <span class="logo-core-text">RL</span>
+            </div>
+          </div>
+          <div class="hero-logo-name">
+            <span class="hero-wordmark">RuntimeLabs</span>
+            <span class="hero-wordmark-sub">Professional Unity Tooling</span>
+          </div>
+        </div>
+
+        <div class="hero-rule reveal" data-reveal-group="hero" aria-hidden="true"></div>
+
+        <!-- Eyebrow -->
+        <p class="hero-eyebrow reveal" data-reveal-group="hero">Game Development Infrastructure</p>
+
+        <!-- Headline split treatment -->
+        <h1 class="hero-headline reveal" data-reveal-group="hero">
+          <span class="hero-headline-line1">Tools built for</span>
+          <span class="hero-headline-line2">serious developers</span>
+        </h1>
+
+        <!-- Description -->
+        <p class="hero-description reveal" data-reveal-group="hero">
+          Editor extensions, optimization utilities, and workflow solutions
+          engineered for production-grade Unity projects. Less friction.
+          More control. Ship faster.
+        </p>
+
+        <!-- CTAs -->
+        <div class="hero-actions reveal" data-reveal-group="hero">
+          <a href="#" class="btn-primary">
+            Explore Assets
+            <span class="arrow-icon" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          </a>
+          <a href="#" class="btn-secondary">
+            <span aria-hidden="true">{ }</span>
+            Documentation
+          </a>
+        </div>
+
+      </div><!-- /hero-content -->
+
+    </main>
+
+    <script>
+    (function() {
+      const canvas = document.getElementById('node-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const NODE_COUNT   = 28;
+      const MAX_DIST     = 200;
+      const NODE_RADIUS  = 2.5;
+      const PACKET_SPEED = 0.006;
+      const NODE_SPEED   = 0.12;
+
+      // Node types for procedural generation motif
+      const NODE_TYPES = ['INPUT', 'MATH', 'OUTPUT', 'PROC', 'UV'];
+
+      let W, H, nodes, packets;
+
+      function rand(min, max) { return min + Math.random() * (max - min); }
+
+      function initNodes() {
+        nodes = [];
+        for (let i = 0; i < NODE_COUNT; i++) {
+          nodes.push({
+            x:    rand(0.05, 0.95) * W,
+            y:    rand(0.05, 0.95) * H,
+            vx:   (Math.random() - 0.5) * NODE_SPEED,
+            vy:   (Math.random() - 0.5) * NODE_SPEED,
+            phase: rand(0, Math.PI * 2),
+            type:  NODE_TYPES[Math.floor(Math.random() * NODE_TYPES.length)],
+          });
+        }
+      }
+
+      function initPackets() {
+        packets = [];
+        for (let i = 0; i < 8; i++) spawnPacket();
+      }
+
+      function spawnPacket() {
+        const a = Math.floor(Math.random() * nodes.length);
+        let b = Math.floor(Math.random() * nodes.length);
+        while (b === a) b = Math.floor(Math.random() * nodes.length);
+        packets.push({ from: a, to: b, t: Math.random() });
+      }
+
+      function resize() {
+        const hero = canvas.parentElement;
+        W = hero.offsetWidth;
+        H = hero.offsetHeight;
+        canvas.width  = W;
+        canvas.height = H;
+        initNodes();
+        initPackets();
+      }
+
+      // Live coordinate HUD update
+      const coordTL = document.querySelector('.hero-coords.top-left');
+      canvas.parentElement && canvas.parentElement.addEventListener('mousemove', function(e) {
+        if (!coordTL) return;
+        var r   = canvas.parentElement.getBoundingClientRect();
+        var nx  = ((e.clientX - r.left) / r.width  * 2 - 1).toFixed(3);
+        var ny  = (-(e.clientY - r.top) / r.height * 2 + 1).toFixed(3);
+        coordTL.innerHTML = 'SCENE_VIEW<br>X: ' + nx + '<br>Y: ' + ny;
+      }, { passive: true });
+
+      let raf;
+      function draw(ts) {
+        ctx.clearRect(0, 0, W, H);
+        const t = ts * 0.001;
+
+        for (const n of nodes) {
+          n.x += n.vx;
+          n.y += n.vy;
+          if (n.x < 0 || n.x > W) n.vx *= -1;
+          if (n.y < 0 || n.y > H) n.vy *= -1;
+        }
+
+        // Edges
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const dx = nodes[j].x - nodes[i].x;
+            const dy = nodes[j].y - nodes[i].y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < MAX_DIST) {
+              const alpha = (1 - dist / MAX_DIST) * 0.15;
+              ctx.beginPath();
+              ctx.moveTo(nodes[i].x, nodes[i].y);
+              ctx.lineTo(nodes[j].x, nodes[j].y);
+              ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Nodes — with type-specific rendering
+        for (const n of nodes) {
+          const pulse = 0.3 + 0.15 * Math.sin(t * 1.2 + n.phase);
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, NODE_RADIUS, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${pulse})`;
+          ctx.fill();
+
+          // Corner brackets (standard)
+          const s = 7;
+          ctx.strokeStyle = `rgba(255,255,255,${pulse * 0.45})`;
+          ctx.lineWidth = 0.75;
+          ctx.beginPath();
+          ctx.moveTo(n.x - s, n.y - s + 3);
+          ctx.lineTo(n.x - s, n.y - s);
+          ctx.lineTo(n.x - s + 3, n.y - s);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(n.x + s, n.y + s - 3);
+          ctx.lineTo(n.x + s, n.y + s);
+          ctx.lineTo(n.x + s - 3, n.y + s);
+          ctx.stroke();
+
+          // Procedural type label for PROC nodes
+          if (n.type === 'PROC' && pulse > 0.35) {
+            ctx.font = '5px "Space Mono", monospace';
+            ctx.fillStyle = `rgba(255,255,255,${pulse * 0.25})`;
+            ctx.textAlign = 'center';
+            ctx.fillText('PCG', n.x, n.y - 10);
+          }
+
+          // Port indicators for OUTPUT nodes
+          if (n.type === 'OUTPUT') {
+            ctx.beginPath();
+            ctx.arc(n.x + s + 2, n.y, 1.5, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(255,255,255,${pulse * 0.55})`;
+            ctx.fill();
+          }
+        }
+
+        // Packets
+        for (const p of packets) {
+          p.t += PACKET_SPEED;
+          if (p.t >= 1) {
+            const a = Math.floor(Math.random() * nodes.length);
+            let b = Math.floor(Math.random() * nodes.length);
+            while (b === a) b = Math.floor(Math.random() * nodes.length);
+            p.from = a; p.to = b; p.t = 0;
+            continue;
+          }
+          const fn = nodes[p.from];
+          const tn = nodes[p.to];
+          const px = fn.x + (tn.x - fn.x) * p.t;
+          const py = fn.y + (tn.y - fn.y) * p.t;
+          const glow = ctx.createRadialGradient(px, py, 0, px, py, 6);
+          glow.addColorStop(0, 'rgba(255,255,255,0.8)');
+          glow.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.beginPath();
+          ctx.arc(px, py, 6, 0, Math.PI * 2);
+          ctx.fillStyle = glow;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          ctx.fill();
+        }
+
+        raf = requestAnimationFrame(draw);
+      }
+
+      const ro = new ResizeObserver(() => resize());
+      ro.observe(canvas.parentElement);
+      resize();
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      raf = requestAnimationFrame(draw);
+    })();
+    </script>
+
+    <!-- PROC TICKER — sits between hero and tools -->
+    <div class="proc-ticker" aria-hidden="true">
+      <div class="proc-ticker-track">
+        <span class="proc-ticker-item">PROCEDURAL GEN</span>
+        <span class="proc-ticker-item">NODE GRAPH</span>
+        <span class="proc-ticker-item">EDITOR EXTENSION</span>
+        <span class="proc-ticker-item">SCENE VIEW</span>
+        <span class="proc-ticker-item">LEVEL DESIGN</span>
+        <span class="proc-ticker-item">RUNTIME LABS</span>
+        <span class="proc-ticker-item">SHADER GRAPH</span>
+        <span class="proc-ticker-item">URP · HDRP</span>
+        <span class="proc-ticker-item">COORDINATE SPACE</span>
+        <span class="proc-ticker-item">MESH GENERATION</span>
+        <span class="proc-ticker-item">TILE MAP</span>
+        <span class="proc-ticker-item">NAVMESH</span>
+        <span class="proc-ticker-item">BUILD PIPELINE</span>
+        <span class="proc-ticker-item">ASSET PIPELINE</span>
+        <span class="proc-ticker-item">PROCEDURAL GEN</span>
+        <span class="proc-ticker-item">NODE GRAPH</span>
+        <span class="proc-ticker-item">EDITOR EXTENSION</span>
+        <span class="proc-ticker-item">SCENE VIEW</span>
+        <span class="proc-ticker-item">LEVEL DESIGN</span>
+        <span class="proc-ticker-item">RUNTIME LABS</span>
+        <span class="proc-ticker-item">SHADER GRAPH</span>
+        <span class="proc-ticker-item">URP · HDRP</span>
+        <span class="proc-ticker-item">COORDINATE SPACE</span>
+        <span class="proc-ticker-item">MESH GENERATION</span>
+        <span class="proc-ticker-item">TILE MAP</span>
+        <span class="proc-ticker-item">NAVMESH</span>
+        <span class="proc-ticker-item">BUILD PIPELINE</span>
+        <span class="proc-ticker-item">ASSET PIPELINE</span>
+      </div>
+    </div>
+
+    <!-- FEATURED TOOLS -->
+    <section class="tools-section" id="tools" aria-label="Featured Tools">
+
+      <!-- Level-design grid overlay -->
+      <div class="level-grid-overlay" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <!-- Tile map cell: 48×48 — matches a common Unity tilemap unit -->
+            <pattern id="tile-cell" x="0" y="0" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#ffffff" stroke-width="0.8"/>
+            </pattern>
+            <!-- Room grid: 240×240 (5 tiles) -->
+            <pattern id="room-grid" x="0" y="0" width="240" height="240" patternUnits="userSpaceOnUse">
+              <path d="M 240 0 L 0 0 0 240" fill="none" stroke="#ffffff" stroke-width="2"/>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#tile-cell)"/>
+          <rect width="100%" height="100%" fill="url(#room-grid)"/>
+        </svg>
+      </div>
+
+      <!-- Spawn markers at corners -->
+      <div class="spawn-marker sm-tl" aria-hidden="true"></div>
+      <div class="spawn-marker sm-tr" aria-hidden="true"></div>
+      <div class="spawn-marker sm-bl" aria-hidden="true"></div>
+      <div class="spawn-marker sm-br" aria-hidden="true"></div>
+
+      <!-- Node-graph mini-panel (top-right deco) -->
+      <div class="node-panel" aria-hidden="true">
+        <div class="node-panel-bar">
+          <span class="node-panel-bar-dot"></span>
+          <span class="node-panel-bar-dot"></span>
+          <span class="node-panel-bar-label">NODE GRAPH</span>
+        </div>
+        <canvas class="node-panel-canvas" width="180" height="120" id="node-panel-canvas"></canvas>
+      </div>
+
+      <div class="section-marker" aria-hidden="true">
+        <span class="section-marker-index">01</span>
+        <span>FEATURED-TOOLS</span>
+      </div>
+
+      <div class="tools-header reveal" data-reveal-group="tools-header">
+        <p class="tools-eyebrow">Featured Tools</p>
+        <h2 class="tools-heading">Production tools for the Unity Editor</h2>
+        <p class="tools-subhead">A curated set of editor extensions and runtime utilities used across shipped titles.</p>
+      </div>
+
+      <div class="tools-grid">
+
+        <article class="tool-card reveal" data-reveal-group="tools">
+          <div class="tool-card-inner">
+            <span class="tool-index">01</span>
+            <div class="tool-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="4" height="4"/>
+                <rect x="3" y="17" width="4" height="4"/>
+                <rect x="14" y="10" width="4" height="4"/>
+                <path d="M5 7v10M5 12h9"/>
+              </svg>
+            </div>
+            <span class="tool-category">Editor Extension</span>
+            <h3 class="tool-name">Hierarchy++</h3>
+            <p class="tool-description">Color-coded hierarchy rows, inline icons, and instant search across deeply nested scene graphs.</p>
+            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+          </div>
+        </article>
+
+        <article class="tool-card reveal" data-reveal-group="tools">
+          <div class="tool-card-inner">
+            <span class="tool-index">02</span>
+            <div class="tool-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19V10M10 19V5M16 19V13M21 19V8"/>
+                <path d="M3 19h18"/>
+              </svg>
+            </div>
+            <span class="tool-category">Optimization</span>
+            <h3 class="tool-name">Memory Profiler X</h3>
+            <p class="tool-description">Frame-accurate memory and GC analysis with object-level allocation tracking.</p>
+            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+          </div>
+        </article>
+
+        <article class="tool-card reveal" data-reveal-group="tools">
+          <div class="tool-card-inner">
+            <span class="tool-index">03</span>
+            <div class="tool-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5" cy="6" r="2.2"/>
+                <circle cx="5" cy="18" r="2.2"/>
+                <circle cx="17" cy="12" r="2.6"/>
+                <path d="M7 6.8L14.7 11M7 17.2L14.7 13"/>
+              </svg>
+            </div>
+            <span class="tool-category">Rendering</span>
+            <h3 class="tool-name">ShaderGraph Toolkit</h3>
+            <p class="tool-description">Custom nodes, live preview windows, and reusable subgraph templates for Shader Graph and URP.</p>
+            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+          </div>
+        </article>
+
+        <article class="tool-card reveal" data-reveal-group="tools">
+          <div class="tool-card-inner">
+            <span class="tool-index">04</span>
+            <div class="tool-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 7l9-4 9 4-9 4-9-4z"/>
+                <path d="M3 12l9 4 9-4"/>
+                <path d="M3 17l9 4 9-4"/>
+              </svg>
+            </div>
+            <span class="tool-category">Workflow</span>
+            <h3 class="tool-name">Build Pipeline Pro</h3>
+            <p class="tool-description">Automated multi-platform builds with version tagging, changelogs, and CI hook support.</p>
+            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+          </div>
+        </article>
+
+        <article class="tool-card reveal" data-reveal-group="tools">
+          <div class="tool-card-inner">
+            <span class="tool-index">05</span>
+            <div class="tool-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10" cy="10" r="6.5"/>
+                <path d="M15 15l5 5"/>
+                <path d="M7.5 10l2 2 4-4"/>
+              </svg>
+            </div>
+            <span class="tool-category">Optimization</span>
+            <h3 class="tool-name">Asset Auditor</h3>
+            <p class="tool-description">Flags unused assets, oversized textures, and duplicate meshes before they reach the build.</p>
+            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+          </div>
+        </article>
+
+        <article class="tool-card reveal" data-reveal-group="tools">
+          <div class="tool-card-inner">
+            <span class="tool-index">06</span>
+            <div class="tool-icon-box" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="1"/>
+                <path d="M7 8h10M7 12h6M7 16h8"/>
+              </svg>
+            </div>
+            <span class="tool-category">Editor Extension</span>
+            <h3 class="tool-name">Inspector Framework</h3>
+            <p class="tool-description">Attribute-driven custom inspectors and property drawers without boilerplate code.</p>
+            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- BUILT FOR PRODUCTION -->
+    <section class="prod-section" id="production" aria-label="Built For Production">
+
+      <div class="section-marker" aria-hidden="true">
+        <span class="section-marker-index">02</span>
+        <span>BUILT-FOR-PRODUCTION</span>
+      </div>
+
+      <div class="prod-header reveal" data-reveal-group="prod-header">
+        <p class="prod-eyebrow">Built For Production</p>
+        <h2 class="prod-heading">Engineered for the long run</h2>
+        <p class="prod-subhead">Every package ships with documented APIs, semantic versioning, pipeline compatibility declarations, and a defined maintenance policy. No surprises mid-project.</p>
+      </div>
+
+      <!-- Main layout: spec panel + capability cards -->
+      <div class="prod-layout reveal" data-reveal-group="prod-layout">
+
+        <!-- Left: compatibility spec table -->
+        <div class="prod-spec-panel">
+
+          <div class="prod-spec-header">
+            <span class="prod-spec-title">Compatibility Matrix</span>
+            <span class="prod-spec-badge">v2.4.x</span>
+          </div>
+
+          <div class="prod-spec-row">
+            <div class="prod-spec-left">
+              <div class="prod-spec-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </div>
+              <div class="prod-spec-info">
+                <div class="prod-spec-name">Universal Render Pipeline</div>
+                <div class="prod-spec-detail">URP 14.x · 15.x · 16.x</div>
+              </div>
+            </div>
+            <div class="prod-spec-status prod-status--supported">
+              <span class="prod-status-dot"></span>Supported
+            </div>
+          </div>
+
+          <div class="prod-spec-row">
+            <div class="prod-spec-left">
+              <div class="prod-spec-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+              <div class="prod-spec-info">
+                <div class="prod-spec-name">High Definition Render Pipeline</div>
+                <div class="prod-spec-detail">HDRP 14.x · 15.x · 16.x</div>
+              </div>
+            </div>
+            <div class="prod-spec-status prod-status--supported">
+              <span class="prod-status-dot"></span>Supported
+            </div>
+          </div>
+
+          <div class="prod-spec-row">
+            <div class="prod-spec-left">
+              <div class="prod-spec-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M9 21V9"/></svg>
+              </div>
+              <div class="prod-spec-info">
+                <div class="prod-spec-name">Unity 2022 LTS</div>
+                <div class="prod-spec-detail">2022.3.x — Active LTS</div>
+              </div>
+            </div>
+            <div class="prod-spec-status prod-status--supported">
+              <span class="prod-status-dot"></span>Supported
+            </div>
+          </div>
+
+          <div class="prod-spec-row">
+            <div class="prod-spec-left">
+              <div class="prod-spec-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M9 21V9"/></svg>
+              </div>
+              <div class="prod-spec-info">
+                <div class="prod-spec-name">Unity 6 LTS</div>
+                <div class="prod-spec-detail">6000.0.x — Current LTS</div>
+              </div>
+            </div>
+            <div class="prod-spec-status prod-status--supported">
+              <span class="prod-status-dot"></span>Supported
+            </div>
+          </div>
+
+          <div class="prod-spec-row">
+            <div class="prod-spec-left">
+              <div class="prod-spec-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+              </div>
+              <div class="prod-spec-info">
+                <div class="prod-spec-name">Unity 2021 LTS</div>
+                <div class="prod-spec-detail">2021.3.x — Maintenance</div>
+              </div>
+            </div>
+            <div class="prod-spec-status prod-status--lts">
+              <span class="prod-status-dot"></span>Maintenance
+            </div>
+          </div>
+
+          <div class="prod-spec-row">
+            <div class="prod-spec-left">
+              <div class="prod-spec-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-5-6 5-6M15 6l5 6-5 6"/></svg>
+              </div>
+              <div class="prod-spec-info">
+                <div class="prod-spec-name">Scripting Backend</div>
+                <div class="prod-spec-detail">Mono · IL2CPP</div>
+              </div>
+            </div>
+            <div class="prod-spec-status prod-status--supported">
+              <span class="prod-status-dot"></span>Both
+            </div>
+          </div>
+
+          <div class="prod-spec-row">
+            <div class="prod-spec-left">
+              <div class="prod-spec-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z"/><path d="M16 12h.01"/></svg>
+              </div>
+              <div class="prod-spec-info">
+                <div class="prod-spec-name">Target Platforms</div>
+                <div class="prod-spec-detail">PC · Console · Mobile · WebGL</div>
+              </div>
+            </div>
+            <div class="prod-spec-status prod-status--supported">
+              <span class="prod-status-dot"></span>All
+            </div>
+          </div>
+
+          <!-- Version support timeline bar -->
+          <div class="prod-version-bar">
+            <div class="prod-version-bar-label">Active support window</div>
+            <div class="prod-version-track">
+              <div class="prod-version-fill"></div>
+            </div>
+            <div class="prod-version-ticks">
+              <span class="prod-version-tick">2021</span>
+              <span class="prod-version-tick is-active">2022</span>
+              <span class="prod-version-tick is-active">2023</span>
+              <span class="prod-version-tick is-active">Unity 6</span>
+              <span class="prod-version-tick">Next</span>
+            </div>
+          </div>
+
+        </div><!-- /prod-spec-panel -->
+
+        <!-- Right: capability cards -->
+        <div class="prod-caps">
+
+          <div class="prod-cap reveal" data-reveal-group="prod-caps">
+            <span class="prod-cap-index">CAP-01</span>
+            <div class="prod-cap-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <div class="prod-cap-name">Long-Term Maintenance</div>
+            <p class="prod-cap-desc">Each package follows a documented lifecycle policy. Critical fixes are backported to all supported LTS branches. Deprecation notices ship at least two major versions in advance.</p>
+            <div class="prod-cap-tags">
+              <span class="prod-cap-tag">Backport policy</span>
+              <span class="prod-cap-tag">Deprecation notices</span>
+              <span class="prod-cap-tag">Lifecycle docs</span>
+            </div>
+          </div>
+
+          <div class="prod-cap reveal" data-reveal-group="prod-caps">
+            <span class="prod-cap-index">CAP-02</span>
+            <div class="prod-cap-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/><path d="M9 12h6M9 16h4"/></svg>
+            </div>
+            <div class="prod-cap-name">Full API Documentation</div>
+            <p class="prod-cap-desc">Every public class, method, and attribute is documented inline and published as a searchable reference. Includes usage examples, parameter tables, and known edge cases.</p>
+            <div class="prod-cap-tags">
+              <span class="prod-cap-tag">XML docs</span>
+              <span class="prod-cap-tag">Searchable KB</span>
+              <span class="prod-cap-tag">Code examples</span>
+            </div>
+          </div>
+
+          <div class="prod-cap reveal" data-reveal-group="prod-caps">
+            <span class="prod-cap-index">CAP-03</span>
+            <div class="prod-cap-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v1a2 2 0 01-2 2H8a2 2 0 01-2-2V9M12 15v-3"/></svg>
+            </div>
+            <div class="prod-cap-name">Version Control Support</div>
+            <p class="prod-cap-desc">Packages are distributed via the Unity Package Manager with scoped registry support. All assets use text-based serialization and are fully diffable in Git, Perforce, or Plastic SCM.</p>
+            <div class="prod-cap-tags">
+              <span class="prod-cap-tag">UPM scoped registry</span>
+              <span class="prod-cap-tag">Git-diffable</span>
+              <span class="prod-cap-tag">Perforce compatible</span>
+            </div>
+          </div>
+
+          <div class="prod-cap reveal" data-reveal-group="prod-caps">
+            <span class="prod-cap-index">CAP-04</span>
+            <div class="prod-cap-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+            </div>
+            <div class="prod-cap-name">Semantic Versioning</div>
+            <p class="prod-cap-desc">All packages follow SemVer 2.0.0 strictly. Breaking changes only ship in major versions. Minor versions are additive. Patch releases contain only bug fixes — no API surface changes.</p>
+            <div class="prod-cap-tags">
+              <span class="prod-cap-tag">SemVer 2.0.0</span>
+              <span class="prod-cap-tag">Changelog per release</span>
+              <span class="prod-cap-tag">Migration guides</span>
+            </div>
+          </div>
+
+        </div><!-- /prod-caps -->
+
+      </div><!-- /prod-layout -->
+
+      <!-- Bottom stat bar -->
+      <div class="prod-status-bar reveal" data-reveal-group="prod-stats">
+        <div class="prod-stat">
+          <div class="prod-stat-value">4+</div>
+          <div class="prod-stat-label">LTS branches maintained</div>
+        </div>
+        <div class="prod-stat">
+          <div class="prod-stat-value">100%</div>
+          <div class="prod-stat-label">Public API documented</div>
+        </div>
+        <div class="prod-stat">
+          <div class="prod-stat-value">SemVer</div>
+          <div class="prod-stat-label">Strict versioning policy</div>
+        </div>
+        <div class="prod-stat">
+          <div class="prod-stat-value">URP+HDRP</div>
+          <div class="prod-stat-label">Both pipelines tested</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- DOCUMENTATION -->
+    <section class="docs-section" id="documentation" aria-label="Documentation">
+
+      <!-- Orthographic projection diagram (decorative) -->
+      <div class="ortho-diagram" aria-hidden="true">
+        <svg viewBox="0 0 100 100" fill="none" stroke="rgba(255,255,255,1)" stroke-width="0.7" xmlns="http://www.w3.org/2000/svg">
+          <!-- Front face -->
+          <rect x="20" y="20" width="45" height="45" stroke-width="0.6"/>
+          <!-- Top face (iso projection) -->
+          <polygon points="20,20 42,8 87,8 65,20" stroke-width="0.6"/>
+          <!-- Side face -->
+          <polygon points="65,20 87,8 87,53 65,65" stroke-width="0.6"/>
+          <!-- Back edges (dashed) -->
+          <line x1="42" y1="8"  x2="42" y2="53" stroke-dasharray="2,2" stroke-width="0.4"/>
+          <line x1="20" y1="65" x2="42" y2="53" stroke-dasharray="2,2" stroke-width="0.4"/>
+          <line x1="42" y1="53" x2="87" y2="53" stroke-dasharray="2,2" stroke-width="0.4"/>
+          <!-- Axis labels -->
+          <text x="6"  y="45" font-size="7" fill="rgba(255,255,255,0.6)" font-family="monospace">X</text>
+          <text x="50" y="98" font-size="7" fill="rgba(255,255,255,0.6)" font-family="monospace">Z</text>
+          <text x="88" y="10" font-size="7" fill="rgba(255,255,255,0.6)" font-family="monospace">Y</text>
+          <!-- Corner dots -->
+          <circle cx="20" cy="20" r="1.2"/><circle cx="65" cy="20" r="1.2"/>
+          <circle cx="20" cy="65" r="1.2"/><circle cx="65" cy="65" r="1.2"/>
+          <circle cx="42" cy="8"  r="1.2"/><circle cx="87" cy="8"  r="1.2"/>
+          <circle cx="87" cy="53" r="1.2"/><circle cx="42" cy="53" r="1.2"/>
+        </svg>
+      </div>
+
+      <div class="section-marker" aria-hidden="true">
+        <span class="section-marker-index">03</span>
+        <span>DOCUMENTATION</span>
+      </div>
+
+      <div class="docs-header reveal" data-reveal-group="docs-header">
+        <p class="docs-eyebrow">Documentation</p>
+        <h2 class="docs-heading">Search the knowledge base</h2>
+        <p class="docs-subhead">Installation guides, API references, and changelogs for every RuntimeLabs tool.</p>
+      </div>
+
+      <div class="docs-window reveal" data-reveal-group="docs-window">
+
+        <div class="docs-window-bar">
+          <div class="docs-window-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+          <span class="docs-window-path">docs <span>/</span> search-index<span>.kb</span></span>
+          <span class="docs-window-tag">Knowledge Base · v2.4</span>
+        </div>
+
+        <div class="docs-search-row">
+          <label class="docs-search-input" for="docs-search-field">
+            <span class="docs-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10" cy="10" r="6.5"/>
+                <path d="M15 15l5 5"/>
+              </svg>
+            </span>
+            <input type="search" id="docs-search-field" class="docs-search-field" placeholder="Search documentation, API references, guides…" autocomplete="off">
+            <span class="docs-search-kbd"><span>⌘</span><span>K</span></span>
+          </label>
+        </div>
+
+        <div class="docs-filters" role="group" aria-label="Filter documentation by category">
+          <button type="button" class="docs-chip docs-chip-active">All</button>
+          <button type="button" class="docs-chip">Getting Started</button>
+          <button type="button" class="docs-chip">API Reference</button>
+          <button type="button" class="docs-chip">Guides</button>
+          <button type="button" class="docs-chip">Changelog</button>
+          <button type="button" class="docs-chip">Tooling</button>
+        </div>
+
+        <div class="docs-body">
+
+          <nav class="docs-sidebar" aria-label="Documentation categories">
+
+            <button type="button" class="docs-tree-item docs-tree-item-active">
+              <span class="docs-tree-label">
+                <span class="docs-tree-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </span>
+                All Documentation
+              </span>
+              <span class="docs-tree-count">69</span>
+            </button>
+
+            <div class="docs-tree-divider"></div>
+
+            <button type="button" class="docs-tree-item">
+              <span class="docs-tree-label">
+                <span class="docs-tree-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M5 3h11l-3 4 3 4H5"/></svg>
+                </span>
+                Getting Started
+              </span>
+              <span class="docs-tree-count">4</span>
+            </button>
+
+            <button type="button" class="docs-tree-item">
+              <span class="docs-tree-label">
+                <span class="docs-tree-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-5-6 5-6M15 6l5 6-5 6"/></svg>
+                </span>
+                API Reference
+              </span>
+              <span class="docs-tree-count">18</span>
+            </button>
+
+            <button type="button" class="docs-tree-item">
+              <span class="docs-tree-label">
+                <span class="docs-tree-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+                </span>
+                Guides
+              </span>
+              <span class="docs-tree-count">12</span>
+            </button>
+
+            <button type="button" class="docs-tree-item">
+              <span class="docs-tree-label">
+                <span class="docs-tree-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+                </span>
+                Changelog
+              </span>
+              <span class="docs-tree-count">26</span>
+            </button>
+
+            <button type="button" class="docs-tree-item">
+              <span class="docs-tree-label">
+                <span class="docs-tree-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+                </span>
+                Tooling Reference
+              </span>
+              <span class="docs-tree-count">9</span>
+            </button>
+
+            <div class="docs-terminal">
+              <div class="docs-terminal-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+              <div class="docs-terminal-body">
+                <div><span class="docs-terminal-prompt">$</span> openupm add com.runtimelabs.suite</div>
+                <div>resolving dependencies&hellip;</div>
+                <div class="docs-terminal-success">&check; installed &rarr; v2.4.1</div>
+              </div>
+            </div>
+
+          </nav>
+
+          <div class="docs-results">
+
+            <article class="docs-result-row reveal" data-reveal-group="docs-results">
+              <div class="docs-result-inner">
+                <div class="docs-result-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+                </div>
+                <div class="docs-result-content">
+                  <div class="docs-result-breadcrumb">docs / getting-started / installation</div>
+                  <div class="docs-result-title-row">
+                    <span class="docs-result-title">Installing RuntimeLabs via Package Manager</span>
+                    <span class="docs-result-tag">Getting Started</span>
+                  </div>
+                  <p class="docs-result-desc">Add the RuntimeLabs scoped registry and install any package directly through Unity's built-in Package Manager.</p>
+                </div>
+                <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+            </article>
+
+            <article class="docs-result-row reveal" data-reveal-group="docs-results">
+              <div class="docs-result-inner">
+                <div class="docs-result-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-5-6 5-6M15 6l5 6-5 6"/></svg>
+                </div>
+                <div class="docs-result-content">
+                  <div class="docs-result-breadcrumb">docs / api-reference / hierarchy-plus-plus</div>
+                  <div class="docs-result-title-row">
+                    <span class="docs-result-title">Hierarchy++ API Reference</span>
+                    <span class="docs-result-tag">API Reference</span>
+                  </div>
+                  <p class="docs-result-desc">Full class reference for HierarchyColorTag, HierarchySearchProvider, and custom row renderers.</p>
+                </div>
+                <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+            </article>
+
+            <article class="docs-result-row reveal" data-reveal-group="docs-results">
+              <div class="docs-result-inner">
+                <div class="docs-result-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+                </div>
+                <div class="docs-result-content">
+                  <div class="docs-result-breadcrumb">docs / guides / build-pipeline-ci</div>
+                  <div class="docs-result-title-row">
+                    <span class="docs-result-title">Configuring Build Pipeline Pro for CI</span>
+                    <span class="docs-result-tag">Guides</span>
+                  </div>
+                  <p class="docs-result-desc">Connect Build Pipeline Pro to GitHub Actions, Jenkins, or any CI runner using the CLI bridge.</p>
+                </div>
+                <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+            </article>
+
+            <article class="docs-result-row reveal" data-reveal-group="docs-results">
+              <div class="docs-result-inner">
+                <div class="docs-result-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+                </div>
+                <div class="docs-result-content">
+                  <div class="docs-result-breadcrumb">docs / guides / memory-profiler-snapshots</div>
+                  <div class="docs-result-title-row">
+                    <span class="docs-result-title">Memory Profiler X &mdash; Reading Allocation Snapshots</span>
+                    <span class="docs-result-tag">Guides</span>
+                  </div>
+                  <p class="docs-result-desc">Interpret call-stack trees, GC spikes, and per-frame allocation deltas in the snapshot viewer.</p>
+                </div>
+                <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+            </article>
+
+            <article class="docs-result-row reveal" data-reveal-group="docs-results">
+              <div class="docs-result-inner">
+                <div class="docs-result-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+                </div>
+                <div class="docs-result-content">
+                  <div class="docs-result-breadcrumb">docs / changelog / v2-4-1</div>
+                  <div class="docs-result-title-row">
+                    <span class="docs-result-title">v2.4.1 Changelog</span>
+                    <span class="docs-result-tag">Changelog</span>
+                  </div>
+                  <p class="docs-result-desc">Editor performance fixes, Inspector Framework attribute changes, and ShaderGraph Toolkit node updates.</p>
+                </div>
+                <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+            </article>
+
+            <article class="docs-result-row reveal" data-reveal-group="docs-results">
+              <div class="docs-result-inner">
+                <div class="docs-result-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-5-6 5-6M15 6l5 6-5 6"/></svg>
+                </div>
+                <div class="docs-result-content">
+                  <div class="docs-result-breadcrumb">docs / api-reference / inspector-framework</div>
+                  <div class="docs-result-title-row">
+                    <span class="docs-result-title">Custom Property Drawers with Inspector Framework</span>
+                    <span class="docs-result-tag">API Reference</span>
+                  </div>
+                  <p class="docs-result-desc">Implement [DrawWithFramework] to register attribute-driven drawers without reflection overhead.</p>
+                </div>
+                <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+            </article>
+
+          </div>
+        </div>
+
+        <div class="docs-window-footer">
+          <span>Showing 6 of 69 results</span>
+          <span>Sorted by relevance</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer" role="contentinfo">
+      <canvas class="footer-node-graph" id="footer-node-canvas" aria-hidden="true"></canvas>
+      <div class="footer-inner">
+
+        <div class="footer-left">
+          <a href="/" class="footer-logo">
+            <span class="footer-logo-mark">RL</span>
+            RuntimeLabs
+          </a>
+          <div class="footer-sep" aria-hidden="true"></div>
+          <span class="footer-copy">© 2026 RuntimeLabs. All rights reserved.</span>
+        </div>
+
+        <ul class="footer-links" role="list">
+          <li><a href="#">Privacy</a></li>
+          <li><a href="#">Terms</a></li>
+          <li><a href="#">EULA</a></li>
+          <li><a href="#">Refunds</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+
+        <div class="footer-right">
+          <div class="footer-status">
+            <span class="footer-status-dot" aria-hidden="true"></span>
+            All systems operational
+          </div>
+        </div>
+
+      </div>
+    </footer>
+
+  </div><!-- /site-wrapper -->
+
+  <script>
+  (function() {
+    'use strict';
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ── Navbar scroll state ── */
+    var navbar = document.querySelector('.navbar');
+    if (navbar) {
+      var onScroll = function() {
+        navbar.classList.toggle('navbar--scrolled', window.scrollY > 8);
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+
+    /* ── Hero load choreography ── */
+    var heroEls = document.querySelectorAll('[data-reveal-group="hero"]');
+    heroEls.forEach(function(el, i) {
+      el.style.transitionDelay = reduceMotion ? '0ms' : (i * 90) + 'ms';
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() { el.classList.add('is-visible'); });
+      });
+    });
+
+    /* ── Scroll-triggered reveal (IntersectionObserver) ── */
+    var groupDelay = {};
+    function staggerDelay(el) {
+      var group = el.getAttribute('data-reveal-group') || 'default';
+      var idx = groupDelay[group] = (groupDelay[group] || 0);
+      groupDelay[group] = idx + 1;
+      return idx * 70;
+    }
+
+    var scrollRevealEls = document.querySelectorAll('.reveal:not([data-reveal-group="hero"])');
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            var el = entry.target;
+            el.style.transitionDelay = staggerDelay(el) + 'ms';
+            el.classList.add('is-visible');
+            io.unobserve(el);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+      scrollRevealEls.forEach(function(el) { io.observe(el); });
+    } else {
+      scrollRevealEls.forEach(function(el) { el.classList.add('is-visible'); });
+    }
+
+    /* ── Wireframe cube parallax (mousemove, hero only) ── */
+    if (!reduceMotion) {
+      var hero = document.querySelector('.hero');
+      var cubeLeft = document.querySelector('.cube-scene.cube-left');
+      var cubeRight = document.querySelector('.cube-scene.cube-right');
+      if (hero && (cubeLeft || cubeRight)) {
+        hero.addEventListener('mousemove', function(e) {
+          var rect = hero.getBoundingClientRect();
+          var nx = (e.clientX - rect.left) / rect.width - 0.5;
+          var ny = (e.clientY - rect.top) / rect.height - 0.5;
+          if (cubeLeft) {
+            cubeLeft.style.transform =
+              'translateY(-50%) translate(' + (nx * -14) + 'px,' + (ny * -10) + 'px)';
+          }
+          if (cubeRight) {
+            cubeRight.style.transform =
+              'translateY(-50%) translate(' + (nx * 20) + 'px,' + (ny * 14) + 'px)';
+          }
+        }, { passive: true });
+      }
+    }
+
+    /* ── Pointer-tracked hover glow (tool cards + docs result rows) ── */
+    function attachPointerGlow(selector) {
+      document.querySelectorAll(selector).forEach(function(el) {
+        el.addEventListener('mousemove', function(e) {
+          var r = el.getBoundingClientRect();
+          var mx = ((e.clientX - r.left) / r.width * 100).toFixed(1) + '%';
+          var my = ((e.clientY - r.top) / r.height * 100).toFixed(1) + '%';
+          el.style.setProperty('--mx', mx);
+          el.style.setProperty('--my', my);
+        }, { passive: true });
+      });
+    }
+    attachPointerGlow('.tool-card');
+    attachPointerGlow('.docs-result-row');
+
+    /* ── Filter chip active-state toggle ── */
+    document.querySelectorAll('.docs-chip').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        document.querySelectorAll('.docs-chip').forEach(function(c) {
+          c.classList.remove('docs-chip-active');
+        });
+        chip.classList.add('docs-chip-active');
+      });
+    });
+
+    /* ── Sidebar tree item active-state toggle ── */
+    document.querySelectorAll('.docs-tree-item').forEach(function(item) {
+      item.addEventListener('click', function() {
+        document.querySelectorAll('.docs-tree-item').forEach(function(t) {
+          t.classList.remove('docs-tree-item-active');
+        });
+        item.classList.add('docs-tree-item-active');
+      });
+    });
+
+    /* ── Node-panel mini canvas (tools section decoration) ── */
+    (function() {
+      var c = document.getElementById('node-panel-canvas');
+      if (!c) return;
+      var ctx = c.getContext('2d');
+      var W = 180, H = 120;
+
+      // Static node graph — a fixed editorial node layout
+      var nodes = [
+        { x: 22, y: 20, label: 'TEX' },
+        { x: 80, y: 14, label: 'MAT' },
+        { x: 148, y: 22, label: 'OUT' },
+        { x: 40, y: 68, label: 'UV'  },
+        { x: 100, y: 58, label: 'MUL' },
+        { x: 55, y: 100, label: 'COL' },
+        { x: 148, y: 80, label: 'PBR' },
+      ];
+
+      var edges = [
+        [0,1],[1,2],[3,4],[4,1],[5,4],[4,6],[6,2]
+      ];
+
+      var packets = edges.map(function(e) { return { from: e[0], to: e[1], t: Math.random() }; });
+
+      function drawPanel(ts) {
+        ctx.clearRect(0, 0, W, H);
+        var t = (ts || 0) * 0.001;
+
+        // Edges
+        edges.forEach(function(e) {
+          var a = nodes[e[0]], b = nodes[e[1]];
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+          ctx.lineWidth = 0.75;
+          ctx.stroke();
+        });
+
+        // Nodes
+        nodes.forEach(function(n) {
+          // Node box
+          ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+          ctx.lineWidth = 0.7;
+          ctx.strokeRect(n.x - 9, n.y - 5, 18, 10);
+          // Label
+          ctx.fillStyle = 'rgba(255,255,255,0.28)';
+          ctx.font = '5px "Space Mono", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(n.label, n.x, n.y + 1.8);
+          // Port dots
+          ctx.fillStyle = 'rgba(255,255,255,0.5)';
+          ctx.beginPath(); ctx.arc(n.x - 9, n.y, 1.5, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(n.x + 9, n.y, 1.5, 0, Math.PI*2); ctx.fill();
+        });
+
+        // Packets
+        packets.forEach(function(p) {
+          p.t += 0.003;
+          if (p.t > 1) p.t = 0;
+          var a = nodes[p.from], b = nodes[p.to];
+          var px = a.x + (b.x - a.x) * p.t;
+          var py = a.y + (b.y - a.y) * p.t;
+          ctx.beginPath();
+          ctx.arc(px, py, 2, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.fill();
+        });
+
+        requestAnimationFrame(drawPanel);
+      }
+
+      if (!reduceMotion) requestAnimationFrame(drawPanel);
+      else drawPanel(0);
+    })();
+
+    /* ── Footer node canvas ── */
+    (function() {
+      var fc = document.getElementById('footer-node-canvas');
+      if (!fc) return;
+      var fctx = fc.getContext('2d');
+
+      function resizeFooter() {
+        fc.width  = fc.parentElement.offsetWidth;
+        fc.height = fc.parentElement.offsetHeight;
+      }
+
+      var fNodes = [];
+      function initFooterNodes() {
+        fNodes = [];
+        for (var i = 0; i < 14; i++) {
+          fNodes.push({
+            x: Math.random() * fc.width,
+            y: Math.random() * fc.height,
+            vx: (Math.random() - 0.5) * 0.07,
+            vy: (Math.random() - 0.5) * 0.07,
+          });
+        }
+      }
+
+      function drawFooter() {
+        fctx.clearRect(0, 0, fc.width, fc.height);
+        fNodes.forEach(function(n) {
+          n.x += n.vx; n.y += n.vy;
+          if (n.x < 0 || n.x > fc.width)  n.vx *= -1;
+          if (n.y < 0 || n.y > fc.height) n.vy *= -1;
+        });
+
+        for (var i = 0; i < fNodes.length; i++) {
+          for (var j = i+1; j < fNodes.length; j++) {
+            var dx = fNodes[j].x - fNodes[i].x;
+            var dy = fNodes[j].y - fNodes[i].y;
+            var d  = Math.sqrt(dx*dx + dy*dy);
+            if (d < 120) {
+              var a = (1 - d/120) * 0.08;
+              fctx.beginPath();
+              fctx.moveTo(fNodes[i].x, fNodes[i].y);
+              fctx.lineTo(fNodes[j].x, fNodes[j].y);
+              fctx.strokeStyle = 'rgba(255,255,255,' + a + ')';
+              fctx.lineWidth = 0.5;
+              fctx.stroke();
+            }
+          }
+          fctx.beginPath();
+          fctx.arc(fNodes[i].x, fNodes[i].y, 1.2, 0, Math.PI*2);
+          fctx.fillStyle = 'rgba(255,255,255,0.15)';
+          fctx.fill();
+        }
+
+        if (!reduceMotion) requestAnimationFrame(drawFooter);
+      }
+
+      new ResizeObserver(function() { resizeFooter(); initFooterNodes(); }).observe(fc.parentElement);
+      resizeFooter();
+      initFooterNodes();
+      if (!reduceMotion) requestAnimationFrame(drawFooter);
+    })();
+
+  })();
+  </script>
+
+</body>
+</html>

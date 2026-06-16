@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RuntimeLabs — Unity Developer Tools</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Cpolygon points='16,4 28,10 28,22 16,28 4,22 4,10' fill='none' stroke='%23F2F2F2' stroke-width='1.5'/%3E%3Ctext x='16' y='20.5' font-family='monospace' font-size='10' font-weight='700' fill='%23F2F2F2' text-anchor='middle'%3ERL%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" type="image/png" sizes="32x32" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Cpolygon points='16,4 28,10 28,22 16,28 4,22 4,10' fill='none' stroke='%23F2F2F2' stroke-width='1.5'/%3E%3Ctext x='16' y='20.5' font-family='monospace' font-size='10' font-weight='700' fill='%23F2F2F2' text-anchor='middle'%3ERL%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -936,6 +938,7 @@
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--grey-dim);
+      text-decoration: none;
       opacity: 0;
       transform: translateY(4px);
       transition: opacity 0.3s ease, transform 0.3s ease, color 0.3s ease;
@@ -1283,6 +1286,8 @@
       display: flex;
       gap: 18px;
       width: 100%;
+      text-decoration: none;
+      color: inherit;
     }
 
     .docs-result-icon {
@@ -2240,17 +2245,17 @@
       </a>
 
       <ul class="nav-links" role="list">
-        <li><a href="#" class="nav-link-active">Products</a></li>
-        <li><a href="#production">Production</a></li>
-        <li><a href="#documentation">Documentation</a></li>
-        <li><a href="#">Changelog</a></li>
-        <li><a href="#">Blog</a></li>
-        <li><a href="#">Support</a></li>
+        <li><a href="/assets" class="nav-link-active">Assets</a></li>
+        <li><a href="/#production">Production</a></li>
+        <li><a href="/docs">Documentation</a></li>
+        <li><a href="/changelog">Changelog</a></li>
+        <li><a href="/about">About</a></li>
+        <li><a href="/support">Support</a></li>
       </ul>
 
       <div class="nav-cta">
         <span class="nav-version">v2.4.1</span>
-        <a href="#" class="nav-btn">Asset Store</a>
+        <a href="https://assetstore.unity.com/publishers/runtimelabs" class="nav-btn" rel="noopener noreferrer" target="_blank">Asset Store</a>
       </div>
     </nav>
 
@@ -2396,11 +2401,11 @@
 
         <!-- CTAs -->
         <div class="hero-actions reveal" data-reveal-group="hero">
-          <a href="#" class="btn-primary">
+          <a href="/assets" class="btn-primary">
             Explore Assets
             <span class="arrow-icon" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
           </a>
-          <a href="#" class="btn-secondary">
+          <a href="/docs" class="btn-secondary">
             <span aria-hidden="true">{ }</span>
             Documentation
           </a>
@@ -2682,7 +2687,7 @@
             <span class="tool-category">Editor Extension</span>
             <h3 class="tool-name">Hierarchy++</h3>
             <p class="tool-description">Color-coded hierarchy rows, inline icons, and instant search across deeply nested scene graphs.</p>
-            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            <a href="/assets/hierarchy-plus-plus" class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
           </div>
         </article>
 
@@ -2698,7 +2703,7 @@
             <span class="tool-category">Optimization</span>
             <h3 class="tool-name">Memory Profiler X</h3>
             <p class="tool-description">Frame-accurate memory and GC analysis with object-level allocation tracking.</p>
-            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            <a href="/assets/memory-profiler-x" class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
           </div>
         </article>
 
@@ -2716,7 +2721,7 @@
             <span class="tool-category">Rendering</span>
             <h3 class="tool-name">ShaderGraph Toolkit</h3>
             <p class="tool-description">Custom nodes, live preview windows, and reusable subgraph templates for Shader Graph and URP.</p>
-            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            <a href="/assets/shadergraph-toolkit" class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
           </div>
         </article>
 
@@ -2733,7 +2738,7 @@
             <span class="tool-category">Workflow</span>
             <h3 class="tool-name">Build Pipeline Pro</h3>
             <p class="tool-description">Automated multi-platform builds with version tagging, changelogs, and CI hook support.</p>
-            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            <a href="/assets/build-pipeline-pro" class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
           </div>
         </article>
 
@@ -2750,7 +2755,7 @@
             <span class="tool-category">Optimization</span>
             <h3 class="tool-name">Asset Auditor</h3>
             <p class="tool-description">Flags unused assets, oversized textures, and duplicate meshes before they reach the build.</p>
-            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            <a href="/assets/asset-auditor" class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
           </div>
         </article>
 
@@ -2766,7 +2771,7 @@
             <span class="tool-category">Editor Extension</span>
             <h3 class="tool-name">Inspector Framework</h3>
             <p class="tool-description">Attribute-driven custom inspectors and property drawers without boilerplate code.</p>
-            <span class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            <a href="/assets/inspector-framework" class="tool-link">View Tool <span class="arrow-icon tool-link-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
           </div>
         </article>
 
@@ -3154,7 +3159,7 @@
           <div class="docs-results">
 
             <article class="docs-result-row reveal" data-reveal-group="docs-results">
-              <div class="docs-result-inner">
+              <a href="/docs/getting-started/installation" class="docs-result-inner">
                 <div class="docs-result-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
                 </div>
@@ -3167,11 +3172,11 @@
                   <p class="docs-result-desc">Add the RuntimeLabs scoped registry and install any package directly through Unity's built-in Package Manager.</p>
                 </div>
                 <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </div>
+              </a>
             </article>
 
             <article class="docs-result-row reveal" data-reveal-group="docs-results">
-              <div class="docs-result-inner">
+              <a href="/docs/api-reference/hierarchy-plus-plus" class="docs-result-inner">
                 <div class="docs-result-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-5-6 5-6M15 6l5 6-5 6"/></svg>
                 </div>
@@ -3184,11 +3189,11 @@
                   <p class="docs-result-desc">Full class reference for HierarchyColorTag, HierarchySearchProvider, and custom row renderers.</p>
                 </div>
                 <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </div>
+              </a>
             </article>
 
             <article class="docs-result-row reveal" data-reveal-group="docs-results">
-              <div class="docs-result-inner">
+              <a href="/docs/guides/build-pipeline-ci" class="docs-result-inner">
                 <div class="docs-result-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
                 </div>
@@ -3201,11 +3206,11 @@
                   <p class="docs-result-desc">Connect Build Pipeline Pro to GitHub Actions, Jenkins, or any CI runner using the CLI bridge.</p>
                 </div>
                 <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </div>
+              </a>
             </article>
 
             <article class="docs-result-row reveal" data-reveal-group="docs-results">
-              <div class="docs-result-inner">
+              <a href="/docs/guides/memory-profiler-snapshots" class="docs-result-inner">
                 <div class="docs-result-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5M6 3h8l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
                 </div>
@@ -3218,11 +3223,11 @@
                   <p class="docs-result-desc">Interpret call-stack trees, GC spikes, and per-frame allocation deltas in the snapshot viewer.</p>
                 </div>
                 <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </div>
+              </a>
             </article>
 
             <article class="docs-result-row reveal" data-reveal-group="docs-results">
-              <div class="docs-result-inner">
+              <a href="/changelog/v2-4-1" class="docs-result-inner">
                 <div class="docs-result-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
                 </div>
@@ -3235,11 +3240,11 @@
                   <p class="docs-result-desc">Editor performance fixes, Inspector Framework attribute changes, and ShaderGraph Toolkit node updates.</p>
                 </div>
                 <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </div>
+              </a>
             </article>
 
             <article class="docs-result-row reveal" data-reveal-group="docs-results">
-              <div class="docs-result-inner">
+              <a href="/docs/api-reference/inspector-framework" class="docs-result-inner">
                 <div class="docs-result-icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l-5-6 5-6M15 6l5 6-5 6"/></svg>
                 </div>
@@ -3252,7 +3257,7 @@
                   <p class="docs-result-desc">Implement [DrawWithFramework] to register attribute-driven drawers without reflection overhead.</p>
                 </div>
                 <span class="arrow-icon docs-result-arrow" aria-hidden="true"><svg viewBox="0 0 16 10" fill="none"><path d="M0 5h13M9 1l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-              </div>
+              </a>
             </article>
 
           </div>
@@ -3281,11 +3286,11 @@
         </div>
 
         <ul class="footer-links" role="list">
-          <li><a href="#">Privacy</a></li>
-          <li><a href="#">Terms</a></li>
-          <li><a href="#">EULA</a></li>
-          <li><a href="#">Refunds</a></li>
-          <li><a href="#">Contact</a></li>
+          <li><a href="/privacy">Privacy</a></li>
+          <li><a href="/terms">Terms</a></li>
+          <li><a href="/eula">EULA</a></li>
+          <li><a href="/refunds">Refunds</a></li>
+          <li><a href="/contact">Contact</a></li>
         </ul>
 
         <div class="footer-right">
